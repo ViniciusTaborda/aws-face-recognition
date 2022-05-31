@@ -1,5 +1,7 @@
+import json
 import os
 import pprint
+import profile
 
 import boto3
 
@@ -35,9 +37,26 @@ def compare_faces(rekog_client, faces_id):
         ))
     return result
 
+def format_comparison_data(rekog_response_list):
+    formated_data = []
+    for response in rekog_response_list:
+        face_data = response["FaceMatches"][0]
+        profile = dict(
+            name=face_data["Face"]["ExternalImageId"],
+            similarity=round(face_data["Similarity"], 2)
+        )
+        formated_data.append(profile)
+    return formated_data
+
+def publish_json_data(data):
+    file = s3.Object("image-recognition-alura-website", "data.json")
+    file.put(Body=json.dumps(data))
 
 faces = recog_faces(rekog_client=rekognition, bucket_name=BUCKET_NAME)
 faces_id = [face_data["Face"]["FaceId"] for face_data in faces["FaceRecords"]]
 
 compared_faces_response = compare_faces(rekog_client=rekognition, faces_id=faces_id)
-pprint.pprint(compared_faces_response)
+formated_face_data = format_comparison_data(compared_faces_response)
+pprint.pprint(formated_face_data)
+
+publish_json_data(formated_face_data)
